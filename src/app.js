@@ -23,8 +23,8 @@ app.set('trust proxy', 1);
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: config.cors.origin,
-  credentials: true,
+  origin: config.env === 'development' ? '*' : config.cors.origin,
+  credentials: config.env !== 'development',
 }));
 
 // Rate limiting

@@ -16,7 +16,9 @@ module.exports = {
     saltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12,
   },
   cors: {
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000'],
+    origin: process.env.CORS_ORIGIN 
+      ? process.env.CORS_ORIGIN.split(',') 
+      : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:52000', 'http://localhost:64064'],
   },
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
