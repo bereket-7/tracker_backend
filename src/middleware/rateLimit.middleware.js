@@ -12,8 +12,8 @@ exports.globalLimiter = rateLimit({
 
 // Auth rate limiter (stricter)
 exports.authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per window
+  windowMs: 15 * 60 * 1000,
+  max: 20, // relaxed for development
   skipSuccessfulRequests: true,
   message: 'Too many authentication attempts, please try again later.',
 });
