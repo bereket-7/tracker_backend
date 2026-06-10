@@ -8,7 +8,19 @@ module.exports = {
   },
   jwt: {
     secret: process.env.JWT_SECRET || 'fallback-secret-key',
-    expire: process.env.JWT_EXPIRE || '7d',
-    refreshExpire: process.env.JWT_REFRESH_EXPIRE || '30d',
+    expire: process.env.JWT_EXPIRE || '15m',
+    refreshSecret: process.env.JWT_REFRESH_SECRET || 'fallback-refresh-secret',
+    refreshExpire: process.env.JWT_REFRESH_EXPIRE || '7d',
   },
+  bcrypt: {
+    saltRounds: parseInt(process.env.BCRYPT_SALT_ROUNDS) || 12,
+  },
+  cors: {
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:3000'],
+  },
+  rateLimit: {
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  },
+  maxRequestSize: process.env.MAX_REQUEST_SIZE || '10mb',
 };

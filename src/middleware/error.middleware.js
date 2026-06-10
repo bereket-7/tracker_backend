@@ -1,7 +1,13 @@
 const ApiResponse = require('../utils/apiResponse');
+const logger = require('../config/logger');
 
 const errorHandler = (err, req, res, next) => {
-  console.error('Error:', err);
+  logger.error('Error:', {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+  });
 
   if (err.name === 'ValidationError') {
     const errors = Object.values(err.errors).map((e) => e.message);
@@ -10,11 +16,19 @@ const errorHandler = (err, req, res, next) => {
 
   if (err.code === 11000) {
     const field = Object.keys(err.keyPattern)[0];
-    return ApiResponse.error(res, `${field} already exists`, 400);
+    return ApiResponse.error(res, `${field} already exists`, 409);
   }
 
   if (err.name === 'CastError') {
     return ApiResponse.error(res, 'Invalid ID format', 400);
+  }
+
+  if (err.name === 'JsonWebTokenError') {
+    return ApiResponse.error(res, 'Invalid token', 401);
+  }
+
+  if (err.name === 'TokenExpiredError') {
+    return ApiResponse.error(res, 'Token expired', 401);
   }
 
   return ApiResponse.error(

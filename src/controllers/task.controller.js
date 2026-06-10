@@ -1,10 +1,15 @@
 const TaskService = require('../services/task.service');
 const ApiResponse = require('../utils/apiResponse');
+const logger = require('../config/logger');
 
 exports.getAllTasks = async (req, res, next) => {
   try {
-    const tasks = await TaskService.getAllTasks(req.user._id, req.query);
-    ApiResponse.success(res, { tasks, count: tasks.length }, 'Tasks retrieved successfully');
+    const result = await TaskService.getAllTasks(req.user._id, req.query, req.query);
+    ApiResponse.success(
+      res, 
+      result, 
+      'Tasks retrieved successfully'
+    );
   } catch (error) {
     next(error);
   }
@@ -22,6 +27,7 @@ exports.getTask = async (req, res, next) => {
 exports.createTask = async (req, res, next) => {
   try {
     const task = await TaskService.createTask(req.user._id, req.body);
+    logger.info(`Task created: ${task._id} by user: ${req.user.email}`);
     ApiResponse.success(res, { task }, 'Task created successfully', 201);
   } catch (error) {
     next(error);
@@ -31,6 +37,7 @@ exports.createTask = async (req, res, next) => {
 exports.updateTask = async (req, res, next) => {
   try {
     const task = await TaskService.updateTask(req.params.id, req.user._id, req.body);
+    logger.info(`Task updated: ${task._id} by user: ${req.user.email}`);
     ApiResponse.success(res, { task }, 'Task updated successfully');
   } catch (error) {
     next(error);
@@ -49,6 +56,7 @@ exports.toggleComplete = async (req, res, next) => {
 exports.deleteTask = async (req, res, next) => {
   try {
     await TaskService.deleteTask(req.params.id, req.user._id);
+    logger.info(`Task deleted: ${req.params.id} by user: ${req.user.email}`);
     ApiResponse.success(res, null, 'Task deleted successfully');
   } catch (error) {
     next(error);
@@ -57,8 +65,9 @@ exports.deleteTask = async (req, res, next) => {
 
 exports.clearAllTasks = async (req, res, next) => {
   try {
-    await TaskService.clearAllTasks(req.user._id);
-    ApiResponse.success(res, null, 'All tasks cleared successfully');
+    const result = await TaskService.clearAllTasks(req.user._id, req.body.confirmation);
+    logger.warn(`All tasks cleared by user: ${req.user.email}`);
+    ApiResponse.success(res, { deletedCount: result.modifiedCount }, 'All tasks cleared successfully');
   } catch (error) {
     next(error);
   }

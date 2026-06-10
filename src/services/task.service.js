@@ -1,7 +1,7 @@
 const Task = require('../models/Task');
 
 class TaskService {
-  static async getAllTasks(userId, filters = {}) {
+  static async getAllTasks(userId, filters = {}, pagination = {}) {
     const query = { userId };
 
     if (filters.completed !== undefined) {
@@ -17,10 +17,7 @@ class TaskService {
     }
 
     if (filters.search) {
-      query.$or = [
-        { title: { $regex: filters.search, $options: 'i' } },
-        { description: { $regex: filters.search, $options: 'i' } },
-      ];
+      query.$text = { $search: filters.search };
     }
 
     const sort = {};
@@ -28,12 +25,33 @@ class TaskService {
     else if (filters.sortBy === 'priority') sort.priority = -1;
     else sort.createdAt = -1;
 
-    return await Task.find(query).sort(sort);
+    const page = parseInt(pagination.page) || 1;
+    const limit = parseInt(pagination.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const [tasks, total] = await Promise.all([
+      Task.find(query).sort(sort).skip(skip).limit(limit),
+      Task.countDocuments(query),
+    ]);
+
+    return {
+      tasks,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
   }
 
   static async getTaskById(taskId, userId) {
     const task = await Task.findOne({ _id: taskId, userId });
-    if (!task) throw new Error('Task not found');
+    if (!task) {
+      const error = new Error('Task not found');
+      error.statusCode = 404;
+      throw error;
+    }
     return task;
   }
 
@@ -47,7 +65,11 @@ class TaskService {
       updates,
       { new: true, runValidators: true }
     );
-    if (!task) throw new Error('Task not found');
+    if (!task) {
+      const error = new Error('Task not found');
+      error.statusCode = 404;
+      throw error;
+    }
     return task;
   }
 
@@ -60,13 +82,27 @@ class TaskService {
   }
 
   static async deleteTask(taskId, userId) {
-    const task = await Task.findOneAndDelete({ _id: taskId, userId });
-    if (!task) throw new Error('Task not found');
+    const task = await Task.findOne({ _id: taskId, userId });
+    if (!task) {
+      const error = new Error('Task not found');
+      error.statusCode = 404;
+      throw error;
+    }
+    await task.softDelete();
     return task;
   }
 
-  static async clearAllTasks(userId) {
-    await Task.deleteMany({ userId });
+  static async clearAllTasks(userId, confirmation) {
+    if (confirmation !== 'DELETE_ALL') {
+      const error = new Error('Confirmation required. Send confirmation: "DELETE_ALL" in request body');
+      error.statusCode = 400;
+      throw error;
+    }
+    const result = await Task.updateMany(
+      { userId, isDeleted: false },
+      { isDeleted: true, deletedAt: new Date() }
+    );
+    return result;
   }
 
   static async addSubtask(taskId, userId, subtaskData) {
@@ -79,7 +115,11 @@ class TaskService {
   static async updateSubtask(taskId, userId, subtaskId, updates) {
     const task = await this.getTaskById(taskId, userId);
     const subtask = task.subtasks.id(subtaskId);
-    if (!subtask) throw new Error('Subtask not found');
+    if (!subtask) {
+      const error = new Error('Subtask not found');
+      error.statusCode = 404;
+      throw error;
+    }
     Object.assign(subtask, updates);
     await task.save();
     return task;
@@ -88,7 +128,11 @@ class TaskService {
   static async toggleSubtaskComplete(taskId, userId, subtaskId) {
     const task = await this.getTaskById(taskId, userId);
     const subtask = task.subtasks.id(subtaskId);
-    if (!subtask) throw new Error('Subtask not found');
+    if (!subtask) {
+      const error = new Error('Subtask not found');
+      error.statusCode = 404;
+      throw error;
+    }
     subtask.isCompleted = !subtask.isCompleted;
     await task.save();
     return task;
@@ -104,10 +148,14 @@ class TaskService {
   static async getStats(userId) {
     const tasks = await Task.find({ userId });
     
+    const now = new Date();
+    const overdueTasks = tasks.filter(t => !t.isCompleted && t.dueDate && t.dueDate < now);
+    
     const stats = {
       total: tasks.length,
       completed: tasks.filter(t => t.isCompleted).length,
       pending: tasks.filter(t => !t.isCompleted).length,
+      overdue: overdueTasks.length,
       byPriority: {
         low: tasks.filter(t => t.priority === 0).length,
         medium: tasks.filter(t => t.priority === 1).length,
@@ -115,6 +163,9 @@ class TaskService {
         urgent: tasks.filter(t => t.priority === 3).length,
       },
       byCategory: {},
+      completionRate: tasks.length > 0 
+        ? Math.round((tasks.filter(t => t.isCompleted).length / tasks.length) * 100) 
+        : 0,
     };
 
     tasks.forEach(task => {
