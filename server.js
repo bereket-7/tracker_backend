@@ -8,7 +8,7 @@ connectDB();
 
 // Start server
 const PORT = config.port;
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   logger.info(`Server running in ${config.env} mode on port ${PORT}`);
   logger.info(`Process ID: ${process.pid}`);
 });
